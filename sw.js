@@ -8,6 +8,10 @@ self.addEventListener('activate', event => {
   event.waitUntil(self.clients.claim());
 });
 
+// Diagnostic metadata only: never store notification contents or financial data.
+function cashFlowPushDb(){return new Promise((resolve,reject)=>{const req=indexedDB.open('cashflow-push-diagnostics-v1',1);req.onupgradeneeded=()=>{if(!req.result.objectStoreNames.contains('events'))req.result.createObjectStore('events',{keyPath:'id',autoIncrement:true})};req.onsuccess=()=>resolve(req.result);req.onerror=()=>reject(req.error)})}
+function cashFlowLogPush(kind){return cashFlowPushDb().then(db=>new Promise((resolve,reject)=>{const tx=db.transaction('events','readwrite');tx.objectStore('events').add({kind,at:Date.now()});tx.oncomplete=()=>{db.close();resolve()};tx.onerror=()=>{db.close();reject(tx.error)}}))}
+self.addEventListener('push',event=>{event.waitUntil(cashFlowLogPush('push doručený do SW').catch(()=>{}))});
 // Firebase Cloud Messaging background push handler.
 // No app pages, payments, or private financial data are cached here.
 importScripts('https://www.gstatic.com/firebasejs/10.13.2/firebase-app-compat.js');
